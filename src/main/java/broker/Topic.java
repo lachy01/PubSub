@@ -1,11 +1,14 @@
 package broker;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import remote.*;
+import response.Response;
+import response.Status;
 
 public class Topic {
 	public final int ID;
@@ -36,5 +39,7 @@ public class Topic {
 		return new Response(Status.SUCCESS);
 	}
 	
-	
+	public List<String> getSubscriberNames() {
+		return Arrays.asList((String[])subscriberNames.toArray());
+	}
 }

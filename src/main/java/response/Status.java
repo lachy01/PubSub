@@ -1,4 +1,4 @@
-package remote;
+package response;
 
 public enum Status {
 	SUCCESS,
