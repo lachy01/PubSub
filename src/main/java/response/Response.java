@@ -11,4 +11,9 @@ public class Response {
 	public Status getStatus() {
 		return status;
 	}
+
+	@Override
+	public String toString() {
+		return status.toString();
+	}
 }

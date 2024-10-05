@@ -14,5 +14,9 @@ public class ListTopicsResponse extends Response {
 	public List<Triplet<Integer, String, String>> getTopics() {
 		return topics;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "ListTopicsResponse [topics=" + topics + "]";
+	}
 }

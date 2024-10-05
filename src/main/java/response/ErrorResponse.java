@@ -8,7 +8,8 @@ public class ErrorResponse extends Response {
 		this.errorMsg = errorMsg;
 	}
 
-	public String getErrorMsg() {
-		return errorMsg;
+	@Override
+	public String toString() {
+		return "Error: " + errorMsg;
 	}
 }

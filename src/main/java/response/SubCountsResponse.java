@@ -15,4 +15,14 @@ public class SubCountsResponse extends Response {
 	public List<Triplet<Integer, String, Integer>> getSubscriberCounts() {
 		return subscriberCounts;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder strBuilder = new StringBuilder();
+		subscriberCounts.forEach(x -> strBuilder.append(
+				x.getValue0().toString() + " " + x.getValue1() + " " + x.getValue2().toString() + "\n"));
+		return strBuilder.toString();
+	}
+	
+	
 }
