@@ -1,6 +1,8 @@
 package publisher;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -20,7 +22,7 @@ public class Publisher {
 	private static String name;
 	private List<Integer> topicIDs;
 	private static Registry registry;
-	private PublisherInterface broker;
+	private static PublisherInterface broker;
 	
 	public static void main(String[] args) {
 		String registryIP;
@@ -35,8 +37,10 @@ public class Publisher {
 			ConnectDirectory directory = (ConnectDirectory) registry.lookup("Directory");
 			directory.getBroker();
 			
+			BufferedReader reader = new BufferedReader(
+		            new InputStreamReader(System.in));
 			while (true) {
-				
+				readInstructions(reader.readLine());
 			}
 		}
 		catch (IOException e) {
@@ -48,7 +52,7 @@ public class Publisher {
 		
 	}
 	
-	private void readInstructions(String input) {
+	private static void readInstructions(String input) {
 		String[] strings = input.split(" ");
 		int topicID;
 		
@@ -57,7 +61,7 @@ public class Publisher {
 			return;
 		}
 		
-		Response response = new ErrorResponse(Status.ERROR, "Please select command: create, publish, show, delete.");;
+		Response response = new ErrorResponse(Status.ERROR, "Please select command: create, publish, show, delete.");
 		
 		switch (strings[0]) {
 		case "create":

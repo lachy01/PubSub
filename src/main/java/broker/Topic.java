@@ -42,4 +42,8 @@ public class Topic {
 	public List<String> getSubscriberNames() {
 		return Arrays.asList((String[])subscriberNames.toArray());
 	}
+	
+	public int getSubCount() {
+		return subscriberNames.size();
+	}
 }

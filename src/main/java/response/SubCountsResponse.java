@@ -5,6 +5,7 @@ import java.util.List;
 import org.javatuples.Triplet;
 
 public class SubCountsResponse extends Response {
+	// List of [topic_id] [topic_name] [count]
 	private List<Triplet<Integer, String, Integer>> subscriberCounts;
 	
 	public SubCountsResponse(Status status, List<Triplet<Integer, String, Integer>> subscriberCounts) {
