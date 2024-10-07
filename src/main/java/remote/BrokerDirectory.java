@@ -4,8 +4,12 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
-import org.javatuples.Pair;
-
 public interface BrokerDirectory extends Remote {
-	public List<Pair<String, Integer>> addBroker(String IP, int port) throws RemoteException;
+	/**
+	 * Adds a broker to the broker network
+	 * @param brokerObjRef The new broker's object reference
+	 * @return the list of broker object references currently in the network
+	 * @throws RemoteException
+	 */
+	public List<String> addBroker(String brokerObjRef) throws RemoteException;
 }

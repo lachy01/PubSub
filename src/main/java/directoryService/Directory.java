@@ -1,7 +1,5 @@
 package directoryService;
 
-import java.util.*;
-import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -11,42 +9,45 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.javatuples.Pair;
-import org.javatuples.Triplet;
 
 import remote.BrokerDirectory;
 import remote.ConnectDirectory;
 
 public class Directory extends UnicastRemoteObject implements BrokerDirectory, ConnectDirectory {
-	// List of IP, port, and number of connections for each broker
-	private List<Triplet<String, Integer, Integer>> brokers;
+	private static final long serialVersionUID = 5971070184679839885L;
+	// List of broker object references, and number of connections for each broker
+	private List<Pair<String, Integer>> brokers;
 	private static Registry registry;
+	private static int portNum;
 	
+	// pass in the portNumber for the registry
 	public static void main(String[] args) {
 		try {
-			int portNum = Integer.parseInt(args[0]);
+			portNum = Integer.parseInt(args[0]);
 			registry = LocateRegistry.createRegistry(portNum);
 			Directory directory = new Directory();
 			registry.rebind("Directory", directory);
-		}
-		catch(Exception e) {
-			
+		} catch (RemoteException e) {
+			System.out.println("Error communicating with registry");
+			e.printStackTrace();
 		}
 	}
 	
 	protected Directory() throws RemoteException {
-		brokers = new ArrayList<Triplet<String, Integer, Integer>>();
+		super();
+		brokers = new ArrayList<Pair<String, Integer>>();
 	}
 	
 	/**
 	 * Returns a single broker for a new connection to connect to
-	 * @return The IP and port number of a single broker
+	 * @return The object reference for a single broker
 	 */
 	@Override
-	public Pair<String, Integer> getBroker() {
-		Triplet<String, Integer, Integer> broker = brokers.stream().min((b1,b2) -> 
-											Integer.compare(b1.getValue2(), b2.getValue2())).get();
-		broker.setAt2(broker.getValue2() + 1);
-;		return new Pair<String, Integer>(broker.getValue0(), broker.getValue1());
+	public String getBroker() {
+		Pair<String, Integer> broker = brokers.stream().min((b1,b2) -> 
+											Integer.compare(b1.getValue1(), b2.getValue1())).get();
+		broker.setAt1(broker.getValue1() + 1);
+;		return broker.getValue0();
 	}
 
 	/**
@@ -57,12 +58,11 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 	 * @return List of IP and port numbers for all other brokers
 	 */
 	@Override
-	public synchronized List<Pair<String, Integer>> addBroker(String IP, int port) {
-		brokers.add(new Triplet<String, Integer, Integer>(IP, port, 0));
+	public synchronized List<String> addBroker(String brokerObjRef) {
+		brokers.add(new Pair<String, Integer>(brokerObjRef, 0));
 		
-		return brokers.subList(0, brokers.size()).stream().
-				map(x -> new Pair<String, Integer>(x.getValue0(), x.getValue1()))
-				.collect(Collectors.toList());
+		return brokers.subList(0, brokers.size() - 1).stream().
+				map(x -> x.getValue0()).collect(Collectors.toList());
 	}
 	
 	

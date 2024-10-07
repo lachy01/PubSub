@@ -1,12 +1,13 @@
 package broker;
 
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import remote.*;
+import response.ErrorResponse;
 import response.Response;
 import response.Status;
 
@@ -23,24 +24,24 @@ public class Topic {
 		this.publisherName = publisherName;
 	}
 	
-	public synchronized Response subscribe(String subscriberName) {
+	public synchronized Response subscribe(String subscriberName) throws RemoteException {
 		if (subscriberNames.contains(subscriberName)) {
-			return new Response(Status.ALREADYSUB);
+			return new ErrorResponse(Status.ALREADYSUB, "Subscriber has already subscribed to this topic.");
 		}
 		subscriberNames.add(subscriberName);
 		return new Response(Status.SUCCESS);
 	}
 	
-	public synchronized Response unsubscribe(String subscriberName) {
+	public synchronized Response unsubscribe(String subscriberName) throws RemoteException {
 		if (!subscriberNames.contains(subscriberName)) {
-			return new Response(Status.SUBNOTFOUND);
+			return new ErrorResponse(Status.SUBNOTFOUND, "Subscriber is not already subscribed to this topic.");
 		}
 		subscriberNames.remove(subscriberName);
 		return new Response(Status.SUCCESS);
 	}
 	
 	public List<String> getSubscriberNames() {
-		return Arrays.asList((String[])subscriberNames.toArray());
+		return new ArrayList<String>(subscriberNames);
 	}
 	
 	public int getSubCount() {

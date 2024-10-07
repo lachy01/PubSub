@@ -5,6 +5,7 @@ import java.util.List;
 import org.javatuples.Triplet;
 
 public class SubCountsResponse extends Response {
+	private static final long serialVersionUID = -4044061054179403210L;
 	// List of [topic_id] [topic_name] [count]
 	private List<Triplet<Integer, String, Integer>> subscriberCounts;
 	

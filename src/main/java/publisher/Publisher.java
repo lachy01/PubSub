@@ -7,7 +7,6 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.List;
 
 import org.javatuples.Pair;
 
@@ -19,11 +18,14 @@ import response.Status;
 
 public class Publisher {
 	private static final int PORT_MAX = 0xFFFF;
-	private static String name;
-	private List<Integer> topicIDs;
+	private static String username;
+	//private List<Integer> topicIDs;
 	private static Registry registry;
 	private static PublisherInterface broker;
+	private static String myIP;
+	private static int myPort;
 	
+	//Usage: java –jar publisher.jar <username> <registry_address> <registry_port> <my_address> <my_port>
 	public static void main(String[] args) {
 		String registryIP;
 		int registryPort;
@@ -35,7 +37,9 @@ public class Publisher {
 			registry = LocateRegistry.getRegistry(registryIP, registryPort);
 			
 			ConnectDirectory directory = (ConnectDirectory) registry.lookup("Directory");
-			directory.getBroker();
+			String brokerRef = directory.getBroker();
+			broker = (PublisherInterface) registry.lookup(brokerRef);
+			broker.registerPublisher(username);
 			
 			BufferedReader reader = new BufferedReader(
 		            new InputStreamReader(System.in));
@@ -44,10 +48,10 @@ public class Publisher {
 			}
 		}
 		catch (IOException e) {
-			
+			e.printStackTrace();
 		}
 		catch (NotBoundException e) {
-			
+			e.printStackTrace();
 		}
 		
 	}
@@ -78,7 +82,7 @@ public class Publisher {
 			String topicName = strings[2];
 			
 			try {
-				response = broker.createTopic(topicID, topicName, name);
+				response = broker.createTopic(topicID, topicName, username);
 			} catch (RemoteException e) {
 				System.out.println("Error communicating with server");
 			}
@@ -103,7 +107,7 @@ public class Publisher {
 			String message = strBuilder.toString();
 			
 			try {
-				response = broker.publish(topicID, message, name);
+				response = broker.publish(topicID, message, username);
 			} catch (RemoteException e) {
 				System.out.println("Error communicating with server");
 			}
@@ -116,7 +120,7 @@ public class Publisher {
 			}
 			
 			try {
-				response = broker.showSubCounts(name);
+				response = broker.showSubCounts(username);
 			} catch (RemoteException e) {
 				System.out.println("Error communicating with server");
 			}
@@ -135,7 +139,7 @@ public class Publisher {
 			}
 			
 			try {
-				response = broker.deleteTopic(topicID, name);
+				response = broker.deleteTopic(topicID, username);
 			} catch (RemoteException e) {
 				System.out.println("Error communicating with server");
 			}
@@ -147,42 +151,35 @@ public class Publisher {
 	}
 	
 	
-	private void createTopic(int ID, String name) {
-		
-	}
-	
-	private void publish(int ID, String message) {
-		
-	}
-	
-	private void showSubCounts() {
-		
-	}
-	
-	private void deleteTopic(int ID) {
-		
-	}
-	
-	
 	private static Pair<String, Integer> readArgs(String[] args) throws IOException {
-		if (args.length != 3) {
-			throw new IOException("Please enter username, broker-directory IP and port number\n "
-							+ "Usage: java –jar publisher.jar <username> <directory_address> <port>");
+		if (args.length != 5) {
+			throw new IOException("Please enter username, registry IP and port number\n "
+							+ "Usage: java –jar publisher.jar <username> <registry_address> <registry_port> <my_address> <my_port>");
 		}
 		
-		name = args[0];
+		username = args[0];
 		String registryIP = args[1];
-		Integer port = 0;
+		Integer registryPort = 0;
 		
 		try {
-			port = Integer.valueOf(args[2]);
-			if (port < 0 || port > PORT_MAX)
-		        throw new IllegalArgumentException("Port out of range:" + port);
+			registryPort = Integer.valueOf(args[2]);
+			if (registryPort < 0 || registryPort > PORT_MAX)
+		        throw new IllegalArgumentException("Port out of range:" + registryPort);
 			}
 		catch (NumberFormatException e) {
 			System.out.println("Port number must be an integer");
 		}
 		
-		return new Pair<String, Integer>(registryIP, port);
+		myIP = args[3];
+		try {
+			myPort = Integer.valueOf(args[4]);
+			if (myPort < 0 || myPort > PORT_MAX)
+		        throw new IllegalArgumentException("Port out of range:" + myPort);
+			}
+		catch (NumberFormatException e) {
+			System.out.println("Port number must be an integer");
+		}
+		
+		return new Pair<String, Integer>(registryIP, registryPort);
 	}
 }
