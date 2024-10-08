@@ -44,10 +44,16 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 	 */
 	@Override
 	public String getBroker() {
-		Pair<String, Integer> broker = brokers.stream().min((b1,b2) -> 
-											Integer.compare(b1.getValue1(), b2.getValue1())).get();
-		broker.setAt1(broker.getValue1() + 1);
-;		return broker.getValue0();
+		int min_i = 0;
+		for (int i=1; i < brokers.size(); i++) {
+			if (brokers.get(i).getValue1() < brokers.get(min_i).getValue1()) {
+				min_i = i;
+			}
+		}
+		brokers.set(min_i, brokers.get(min_i).setAt1(brokers.get(min_i).getValue1() + 1));
+		System.out.println(brokers.get(min_i).getValue0() + " connected to, current number of connections: " 
+				+ brokers.get(min_i).getValue1());
+;		return brokers.get(min_i).getValue0();
 	}
 
 	/**
@@ -60,7 +66,7 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 	@Override
 	public synchronized List<String> addBroker(String brokerObjRef) {
 		brokers.add(new Pair<String, Integer>(brokerObjRef, 0));
-		
+		System.out.println("Broker " + brokerObjRef + " added");
 		return brokers.subList(0, brokers.size() - 1).stream().
 				map(x -> x.getValue0()).collect(Collectors.toList());
 	}

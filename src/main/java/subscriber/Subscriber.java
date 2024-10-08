@@ -46,7 +46,13 @@ public class Subscriber {
 			// Start a new thread for a listening connection
 			Thread listenThread = new Thread(() -> listenForMsgs());
 			listenThread.start();
-			Thread.sleep(1000); // Allow the other thread to begin accepting port connection
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+			// Allow the other thread to begin accepting port connection
 			broker.registerSubscriber(username, myIP, myPort);
 			
 			

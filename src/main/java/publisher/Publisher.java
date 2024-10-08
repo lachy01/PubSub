@@ -40,6 +40,7 @@ public class Publisher {
 			String brokerRef = directory.getBroker();
 			broker = (PublisherInterface) registry.lookup(brokerRef);
 			broker.registerPublisher(username);
+			System.out.println("Connected to broker " + brokerRef);
 			
 			BufferedReader reader = new BufferedReader(
 		            new InputStreamReader(System.in));

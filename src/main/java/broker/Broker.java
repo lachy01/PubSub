@@ -155,6 +155,7 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 			DataOutputStream output = new DataOutputStream(socket.getOutputStream());
 			output.writeUTF(message);
 			output.flush();
+			System.out.println("Sent to " + subscriberName);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -226,7 +227,7 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		{
 			Socket socket = new Socket(IP, port);
 			DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-		    String sendData ="Connected to broker";
+		    String sendData ="Connected to broker " + objectRef;
 	    	output.writeUTF(sendData);
 	    	output.flush();
 	    	
@@ -257,14 +258,18 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 
 	@Override
 	public Response subscribe(int ID, String subscriberName) throws RemoteException {
+		Boolean found = false;
 		if (!topicRouteMap.containsKey(ID)) {
 			for (BrokerInterconnect otherBroker : otherBrokers) {
 				if (otherBroker.hasTopic(ID)) {
 					topicRouteMap.put(ID, otherBroker);
+					found = true;
 					break;
 				}
 			}
-			return new ErrorResponse(Status.TOPICNOTFOUND, "This topic cannot be found.");
+			if (!found) {
+				return new ErrorResponse(Status.TOPICNOTFOUND, "This topic cannot be found.");
+			}
 		}
 		BrokerInterconnect topicsBroker = topicRouteMap.get(ID);
 		Pair<String, String> topicInfo = topicsBroker.getTopicInfo(ID);
@@ -275,14 +280,18 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 
 	@Override
 	public Response unsubscribe(int ID, String subscriberName) throws RemoteException {
+		Boolean found = false;
 		if (!topicRouteMap.containsKey(ID)) {
 			for (BrokerInterconnect otherBroker : otherBrokers) {
 				if (otherBroker.hasTopic(ID)) {
 					topicRouteMap.put(ID, otherBroker);
+					found = true;
 					break;
 				}
 			}
-			return new ErrorResponse(Status.TOPICNOTFOUND, "This topic cannot be found.");
+			if (!found) {
+				return new ErrorResponse(Status.TOPICNOTFOUND, "This topic cannot be found.");
+			}
 		}
 		BrokerInterconnect topicsBroker = topicRouteMap.get(ID);
 		removeSubscriber(ID, subscriberName);
