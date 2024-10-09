@@ -55,6 +55,9 @@ public class Subscriber {
 			// Allow the other thread to begin accepting port connection
 			broker.registerSubscriber(username, myIP, myPort);
 			
+			Thread heartbeatThread = new Thread(() -> performHeartbeats());
+			heartbeatThread.start();
+			
 			
 			BufferedReader reader = new BufferedReader(
 		            new InputStreamReader(System.in));
@@ -139,6 +142,23 @@ public class Subscriber {
 	
 	public Subscriber(String name) {
 		
+	}
+	
+	private static void performHeartbeats() {
+		while (true) {
+			try {
+				broker.heartbeat(username);
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	private static void listenForMsgs() {

@@ -11,4 +11,5 @@ public interface SubscriberInterface extends Remote {
 	public Response subscribe(int ID, String subscriberName) throws RemoteException;
 	public Response unsubscribe(int ID, String subscriberName) throws RemoteException;
 	public Response showSubs(String subscriberName) throws RemoteException;
+	public void heartbeat(String username) throws RemoteException;
 }

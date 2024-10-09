@@ -42,6 +42,9 @@ public class Publisher {
 			broker.registerPublisher(username);
 			System.out.println("Connected to broker " + brokerRef);
 			
+			Thread heartbeatThread = new Thread(() -> performHeartbeats());
+			heartbeatThread.start();
+			
 			BufferedReader reader = new BufferedReader(
 		            new InputStreamReader(System.in));
 			while (true) {
@@ -55,6 +58,23 @@ public class Publisher {
 			e.printStackTrace();
 		}
 		
+	}
+	
+	private static void performHeartbeats() {
+		while (true) {
+			try {
+				broker.heartbeat(username);
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	private static void readInstructions(String input) {
@@ -101,11 +121,16 @@ public class Publisher {
 				return;
 			}
 			
+			/**
 			StringBuilder strBuilder = new StringBuilder();
 			for (int i=2; i<strings.length; i++) {
-				strBuilder.append(strings[i]);
+				strBuilder.append(strings[i] + " ");
 			}
 			String message = strBuilder.toString();
+			*/
+			int msgStart = input.indexOf(strings[1]) + strings[1].length() + 1;
+			String message = input.substring(msgStart);
+			
 			
 			try {
 				response = broker.publish(topicID, message, username);

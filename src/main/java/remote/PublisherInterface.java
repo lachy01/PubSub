@@ -11,4 +11,5 @@ public interface PublisherInterface extends Remote {
 	public Response publish(int ID, String message, String publisherName) throws RemoteException;
 	public Response showSubCounts(String publisherName) throws RemoteException;
 	public Response deleteTopic(int ID, String publisherName) throws RemoteException;
+	public void heartbeat(String username) throws RemoteException;
 }

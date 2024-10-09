@@ -9,6 +9,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,20 +34,25 @@ import response.SubCountsResponse;
 
 public class Broker extends UnicastRemoteObject implements PublisherInterface, SubscriberInterface, BrokerInterconnect{
 	private static final long serialVersionUID = 1960092328885316174L;
+	private static final long TIMEOUT = 2000;
 	private static Registry registry;
 	private static BrokerDirectory directory;
 	private static String objectRef;
 	private static List<BrokerInterconnect> otherBrokers;
-	private HashMap<Integer, Topic> topics; 					// Maps topicId -> topic
-	private HashMap<String, List<Integer>> publisherTopics; 	// Maps publisherName -> [topic_id]
-	private HashMap<String, Socket> subscriberSockets; 			// Maps subscriberName -> socket
-	private HashMap<Integer, BrokerInterconnect> topicRouteMap; // Maps topicID -> broker
+	private HashMap<Integer, Topic> topics; 						// Maps topicId -> topic
+	private static HashMap<String, List<Integer>> publisherTopics; 	// Maps publisherName -> [topic_id]
+	private static HashMap<String, Socket> subscriberSockets; 		// Maps subscriberName -> socket
+	private HashMap<Integer, BrokerInterconnect> topicRouteMap; 	// Maps topicID -> broker
 	private HashMap<String, BrokerInterconnect> subscriberRouteMap; // Maps subscriberName -> broker
 	// Maps subscriberName -> [(topic_id, topic_name, publisher_name)]
 	private HashMap<String, List<Triplet<Integer, String, String>>> subscriberSubs; 
+	private static HashMap<String, Long> heartbeats;
 	
-	// For the broker, you pass in the port number for the broker, 
-	// the IP and port number of the RMI Registry for the Directory
+	/**
+	 * Runs the broker, gets the directory from the RMI registry and
+	 * connects to all other brokers
+	 * @param args [brokerPortNum] [registryIP] [registryPortNum]
+	 */
 	public static void main(String[] args) {
 		int portNum = Integer.parseInt(args[0]);
 		objectRef = "Broker" + portNum;
@@ -66,6 +74,8 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		}
 		
 		connectToBrokers();
+		
+		checkHeartbeats();
 	}
 	
 	public Broker() throws RemoteException {
@@ -80,6 +90,74 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		subscriberSubs = new HashMap<String, List<Triplet<Integer, String, String>>>(); 
 	}
 	
+	@Override
+	public void heartbeat(String username) {
+		Instant instant = Instant.now();
+		heartbeats.put(username, instant.toEpochMilli());
+	}
+	
+	private static void checkHeartbeats() {
+		while (true) {
+			for (String username: heartbeats.keySet()) {
+				if (Instant.now().toEpochMilli() - heartbeats.get(username) > TIMEOUT) {
+					if (publisherTopics.containsKey(username)) {
+						removePublisher(username);
+					}
+					else if (subscriberSockets.containsKey(username)) {
+						removeSubscriber(username);
+					}
+					heartbeats.remove(username);
+				}
+			}
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private static void removeSubscriber(String subscriberName) {
+		Response response;
+		for (Triplet<Integer, String, String> topic: subscriberSubs.get(subscriberName)) {
+			try {
+				response = unsubscribe(topic.getValue0(), subscriberName);
+				if (response instanceof ErrorResponse) {
+					System.out.println("Error unsubscribing dead subscriber.");
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		try {
+			subscriberSockets.get(subscriberName).close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		subscriberSockets.remove(subscriberName);
+		subscriberSubs.remove(subscriberName);
+	}
+	
+	private static void removePublisher(String publisherName) {
+		Response response;
+		for (int topicID: publisherTopics.get(publisherName)) {
+			try {
+				response = deleteTopic(topicID, publisherName);
+				if (response instanceof ErrorResponse) {
+					System.out.println("Error removing topics from dead publisher.");
+				}
+			} catch (RemoteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		publisherTopics.remove(publisherName);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	// --------------------------------------------------------------------------------------------
@@ -87,7 +165,6 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 	// --------------------------------------------------------------------------------------------
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public List<Triplet<Integer, String, String>> collectTopics() throws RemoteException {
 		List<Triplet<Integer, String, String>> topicsList = new ArrayList<Triplet<Integer, String, String>>();
@@ -199,6 +276,7 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		}
 	}
 	
+	@Override
 	public Response acceptConnection(String otherBrokerRef) throws RemoteException {
 		try {
 			BrokerInterconnect otherBroker = (BrokerInterconnect) registry.lookup(otherBrokerRef);
@@ -336,6 +414,8 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 	@Override
 	public Response publish(int ID, String message, String publisherName) throws RemoteException {
 		Topic topic = topics.get(ID);
+		
+		// Ensure this topic exists and is managed by this publisher.
 		if (topic == null) {
 			return new ErrorResponse(Status.ERROR, "Topic not found.");
 		}
@@ -343,6 +423,10 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 			return new ErrorResponse(Status.ACCESSDENIED, "Topic is not managed by this publisher, it is managed by " 
 					+ topic.publisherName);
 		}
+		
+		LocalDateTime localDateTime = LocalDateTime.now();
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM hh:mm:ss");
+		message = localDateTime.format(formatter) + " " + topic.ID + ":" + topic.name + ": " + message;
 		
 		Response response = new Response(Status.SUCCESS);
 		for (String subscriberName: topic.getSubscriberNames()) {
