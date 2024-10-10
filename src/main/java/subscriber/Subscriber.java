@@ -29,6 +29,13 @@ public class Subscriber {
 	private static String myIP;
 	private static int myPort;
 	
+	/**
+	 * Runs the Subscriber, connecting it to the RMI Registry, using it to access the 
+	 * Directory and get a Broker to connect to. Opens a server socket to receive messages from 
+	 * the broker and registers itself with the broker. Starts a heartbeat with the broker
+	 * and awaits input from the console.
+	 * @param args java –jar subscriber.jar <username> <registry_address> <registry_port> <my_address> <my_port>
+	 */
 	public static void main(String[] args) {
 		String registryIP;
 		int registryPort;
@@ -47,9 +54,11 @@ public class Subscriber {
 			Thread listenThread = new Thread(() -> listenForMsgs());
 			listenThread.start();
 			try {
+				//Ensure the listenForMsgs thread has time to open the socket before
+				//registering to avoid the broker trying to connect to a non-existant
+				//socket.
 				Thread.sleep(200);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} 
 			// Allow the other thread to begin accepting port connection
@@ -74,6 +83,11 @@ public class Subscriber {
 		
 	}
 	
+	/**
+	 * Processes the input line from the console and calls the respective RMI methods on the
+	 * connected broker to serve the request, finally printing the response.
+	 * @param input a line of input from the console
+	 */
 	private static void readInstructions(String input) {
 		String[] strings = input.split(" ");
 		int topicID;
@@ -144,6 +158,9 @@ public class Subscriber {
 		
 	}
 	
+	/**
+	 * Pings the connected broker with a heartbeat every 500 milliseconds
+	 */
 	private static void performHeartbeats() {
 		while (true) {
 			try {
@@ -161,6 +178,9 @@ public class Subscriber {
 		}
 	}
 	
+	/**
+	 * Listens for incoming messages from the broker socket and prints them as they come.
+	 */
 	private static void listenForMsgs() {
 		ServerSocketFactory factory = ServerSocketFactory.getDefault();
 		
@@ -185,7 +205,12 @@ public class Subscriber {
 		}
 	}
 	
-	
+	/**
+	 * Parses the command-line arguments
+	 * @param args command-line arguments
+	 * @return (registryIP, registryPort) for the RMI registry
+	 * @throws IOException
+	 */
 	private static Pair<String, Integer> readArgs(String[] args) throws IOException {
 		if (args.length != 5) {
 			throw new IOException("Please enter username, registry IP and port number, and the subscriber's IP and port number\n "

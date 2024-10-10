@@ -20,7 +20,10 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 	private static Registry registry;
 	private static int portNum;
 	
-	// pass in the portNumber for the registry
+	/**
+	 * Creates the RMI registry and binds the broker Directory to it
+	 * @param args <registry_port_number>
+	 */
 	public static void main(String[] args) {
 		try {
 			portNum = Integer.parseInt(args[0]);
@@ -38,10 +41,6 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 		brokers = new ArrayList<Pair<String, Integer>>();
 	}
 	
-	/**
-	 * Returns a single broker for a new connection to connect to
-	 * @return The object reference for a single broker
-	 */
 	@Override
 	public String getBroker() {
 		int min_i = 0;
@@ -56,25 +55,11 @@ public class Directory extends UnicastRemoteObject implements BrokerDirectory, C
 ;		return brokers.get(min_i).getValue0();
 	}
 
-	/**
-	 * Takes the IP and port associated with the new broker and returns the
-	 * list of IP and ports for all other brokers
-	 * @param IP address of new broker
-	 * @param port number of new broker
-	 * @return List of IP and port numbers for all other brokers
-	 */
 	@Override
 	public synchronized List<String> addBroker(String brokerObjRef) {
 		brokers.add(new Pair<String, Integer>(brokerObjRef, 0));
 		System.out.println("Broker " + brokerObjRef + " added");
 		return brokers.subList(0, brokers.size() - 1).stream().
 				map(x -> x.getValue0()).collect(Collectors.toList());
-	}
-	
-	
-	@Override
-	public void disconnectBroker(String IP, int port) {
-		// TODO Auto-generated method stub
-
 	}
 }

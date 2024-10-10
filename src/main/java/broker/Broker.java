@@ -32,20 +32,27 @@ import response.ShowSubsResponse;
 import response.Status;
 import response.SubCountsResponse;
 
+/**
+ * The broker class for the publisher subscriber broker network. This is responsible for all the processing of 
+ * topics, subscriptions, and messages. Each broker is connected to one another via RMI, publishers and subscribers
+ * can interact with it via RMI, and it sends messages to the subscribers over a socket.
+ * Most docstrings are found in the interface files.
+ */
 public class Broker extends UnicastRemoteObject implements PublisherInterface, SubscriberInterface, BrokerInterconnect{
 	private static final long serialVersionUID = 1960092328885316174L;
 	private static final long TIMEOUT = 2000;
 	private static Registry registry;
 	private static BrokerDirectory directory;
+	private static Broker thisBroker;
 	private static String objectRef;
 	private static List<BrokerInterconnect> otherBrokers;
-	private HashMap<Integer, Topic> topics; 						// Maps topicId -> topic
-	private static HashMap<String, List<Integer>> publisherTopics; 	// Maps publisherName -> [topic_id]
-	private static HashMap<String, Socket> subscriberSockets; 		// Maps subscriberName -> socket
-	private HashMap<Integer, BrokerInterconnect> topicRouteMap; 	// Maps topicID -> broker
-	private HashMap<String, BrokerInterconnect> subscriberRouteMap; // Maps subscriberName -> broker
+	private static HashMap<Integer, Topic> topics; 						// Maps topicId -> topic
+	private static HashMap<String, List<Integer>> publisherTopics; 		// Maps publisherName -> [topic_id]
+	private static HashMap<String, Socket> subscriberSockets; 			// Maps subscriberName -> socket
+	private static HashMap<Integer, BrokerInterconnect> topicRouteMap; 	// Maps topicID -> broker
+	private static HashMap<String, BrokerInterconnect> subscriberRouteMap; // Maps subscriberName -> broker
 	// Maps subscriberName -> [(topic_id, topic_name, publisher_name)]
-	private HashMap<String, List<Triplet<Integer, String, String>>> subscriberSubs; 
+	private static HashMap<String, List<Triplet<Integer, String, String>>> subscriberSubs; 
 	private static HashMap<String, Long> heartbeats;
 	
 	/**
@@ -88,6 +95,7 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		subscriberRouteMap = new HashMap<String, BrokerInterconnect>(); // Maps subscriberName -> broker
 		// Maps subscriberName -> [(topic_id, topic_name, publisher_name)]
 		subscriberSubs = new HashMap<String, List<Triplet<Integer, String, String>>>(); 
+		heartbeats = new HashMap<String, Long>();
 	}
 	
 	@Override
@@ -96,18 +104,37 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		heartbeats.put(username, instant.toEpochMilli());
 	}
 	
+	/**
+	 * Ensures that each connect user (publisher or subscriber) has registered
+	 * a heartbeat within the last 2000 milliseconds. This is checked every
+	 * 500 milliseconds. If a user has timed out, they will be removed. Subscribers
+	 * will be unsubscribed from their topics and publishers topics will be deleted.
+	 */
 	private static void checkHeartbeats() {
 		while (true) {
+			if (heartbeats.size() == 0) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			List<String> toRemove = new ArrayList<String>();
 			for (String username: heartbeats.keySet()) {
 				if (Instant.now().toEpochMilli() - heartbeats.get(username) > TIMEOUT) {
 					if (publisherTopics.containsKey(username)) {
-						removePublisher(username);
+						thisBroker.removePublisher(username);
 					}
 					else if (subscriberSockets.containsKey(username)) {
-						removeSubscriber(username);
+						thisBroker.deleteSubscriber(username);
 					}
-					heartbeats.remove(username);
+					toRemove.add(username);
+					System.out.println("Timeout occured for " + username + ", they have been removed");
 				}
+			}
+			for (String username: toRemove) {
+				heartbeats.remove(username);
 			}
 			try {
 				Thread.sleep(500);
@@ -118,11 +145,15 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		}
 	}
 	
-	private static void removeSubscriber(String subscriberName) {
+	/**
+	 * Unsubscribes a subscriber from all their topics, closes their socket, and deletes their data.
+	 * @param subscriberName username of the subscriber
+	 */
+	private synchronized void deleteSubscriber(String subscriberName) {
 		Response response;
-		for (Triplet<Integer, String, String> topic: subscriberSubs.get(subscriberName)) {
+		while (subscriberSubs.get(subscriberName).size() > 0) {
 			try {
-				response = unsubscribe(topic.getValue0(), subscriberName);
+				response = unsubscribe(subscriberSubs.get(subscriberName).get(0).getValue0(), subscriberName);
 				if (response instanceof ErrorResponse) {
 					System.out.println("Error unsubscribing dead subscriber.");
 				}
@@ -143,11 +174,15 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		subscriberSubs.remove(subscriberName);
 	}
 	
-	private static void removePublisher(String publisherName) {
+	/**
+	 * Deletes all of the publishers topics and deletes their data.
+	 * @param publisherName username of the publisher
+	 */
+	private void removePublisher(String publisherName) {
 		Response response;
-		for (int topicID: publisherTopics.get(publisherName)) {
+		while (publisherTopics.get(publisherName).size() > 0) {
 			try {
-				response = deleteTopic(topicID, publisherName);
+				response = deleteTopic(publisherTopics.get(publisherName).get(0), publisherName);
 				if (response instanceof ErrorResponse) {
 					System.out.println("Error removing topics from dead publisher.");
 				}
@@ -241,11 +276,15 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		return new Response(Status.SUCCESS);
 	}
 	
+	/**
+	 * Initialises this broker, binding it to the RMI registry. Then it queries the Directory
+	 * to get all the other brokers references and connects itself to them.
+	 */
 	public static void connectToBrokers() {
 		try {
 			// First, setup this broker and register it
-			Broker broker = new Broker();
-			registry.bind(objectRef, broker);
+			thisBroker = new Broker();
+			registry.bind(objectRef, thisBroker);
 			
 			// Then, connect it to all the other brokers
 			List<String> otherBrokerRefs = directory.addBroker(objectRef);
@@ -430,6 +469,7 @@ public class Broker extends UnicastRemoteObject implements PublisherInterface, S
 		
 		Response response = new Response(Status.SUCCESS);
 		for (String subscriberName: topic.getSubscriberNames()) {
+			// Try to find the subscribers on this or other brokers, updating the subscriberRouteMap if found.
 			if (!subscriberRouteMap.containsKey(subscriberName) && !findSubscriber(subscriberName)) {
 				return new ErrorResponse(Status.SUBNOTFOUND, "Subscriber " + subscriberName + " could not be located.");
 			}

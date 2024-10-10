@@ -19,13 +19,15 @@ import response.Status;
 public class Publisher {
 	private static final int PORT_MAX = 0xFFFF;
 	private static String username;
-	//private List<Integer> topicIDs;
 	private static Registry registry;
 	private static PublisherInterface broker;
-	private static String myIP;
-	private static int myPort;
 	
-	//Usage: java –jar publisher.jar <username> <registry_address> <registry_port> <my_address> <my_port>
+	/**
+	 * Runs the Publisher, connecting it to the RMI Registry, using it to access the 
+	 * Directory and get a Broker to connect to. Starts a heartbeat with the broker
+	 * and awaits input from the console.
+	 * @param args java –jar publisher.jar <username> <registry_address> <registry_port>
+	 */
 	public static void main(String[] args) {
 		String registryIP;
 		int registryPort;
@@ -60,6 +62,9 @@ public class Publisher {
 		
 	}
 	
+	/**
+	 * Pings the connected broker with a heartbeat every 500 milliseconds
+	 */
 	private static void performHeartbeats() {
 		while (true) {
 			try {
@@ -77,6 +82,11 @@ public class Publisher {
 		}
 	}
 	
+	/**
+	 * Processes the input line from the console and calls the respective RMI methods on the
+	 * connected broker to serve the request, finally printing the response.
+	 * @param input a line of input from the console
+	 */
 	private static void readInstructions(String input) {
 		String[] strings = input.split(" ");
 		int topicID;
@@ -121,13 +131,6 @@ public class Publisher {
 				return;
 			}
 			
-			/**
-			StringBuilder strBuilder = new StringBuilder();
-			for (int i=2; i<strings.length; i++) {
-				strBuilder.append(strings[i] + " ");
-			}
-			String message = strBuilder.toString();
-			*/
 			int msgStart = input.indexOf(strings[1]) + strings[1].length() + 1;
 			String message = input.substring(msgStart);
 			
@@ -140,8 +143,8 @@ public class Publisher {
 			break;
 			
 		case "show":
-			if (strings.length != 2) {
-				System.out.println("Usage: show {topic_id} #show subsriber count for current publisher");
+			if (strings.length != 1) {
+				System.out.println("Usage: show #show subsriber count for current publisher");
 				return;
 			}
 			
@@ -176,11 +179,16 @@ public class Publisher {
 		System.out.println(response.toString());
 	}
 	
-	
+	/**
+	 * Parses the command-line arguments
+	 * @param args command-line arguments
+	 * @return (registryIP, registryPort) for the RMI registry
+	 * @throws IOException
+	 */
 	private static Pair<String, Integer> readArgs(String[] args) throws IOException {
-		if (args.length != 5) {
+		if (args.length != 3) {
 			throw new IOException("Please enter username, registry IP and port number\n "
-							+ "Usage: java –jar publisher.jar <username> <registry_address> <registry_port> <my_address> <my_port>");
+							+ "Usage: java –jar publisher.jar <username> <registry_address> <registry_port>");
 		}
 		
 		username = args[0];
@@ -191,16 +199,6 @@ public class Publisher {
 			registryPort = Integer.valueOf(args[2]);
 			if (registryPort < 0 || registryPort > PORT_MAX)
 		        throw new IllegalArgumentException("Port out of range:" + registryPort);
-			}
-		catch (NumberFormatException e) {
-			System.out.println("Port number must be an integer");
-		}
-		
-		myIP = args[3];
-		try {
-			myPort = Integer.valueOf(args[4]);
-			if (myPort < 0 || myPort > PORT_MAX)
-		        throw new IllegalArgumentException("Port out of range:" + myPort);
 			}
 		catch (NumberFormatException e) {
 			System.out.println("Port number must be an integer");
